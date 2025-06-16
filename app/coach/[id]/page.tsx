@@ -17,7 +17,7 @@ const coachesData = {
     reviews: 127,
     price: 45,
     location: "Paris 16ème",
-    image: "/placeholder.svg?height=300&width=300",
+    image: "/marc_dubois.jpg",
     description:
       "Coach professionnel de padel avec 8 ans d'expérience. Ancien joueur de tennis reconverti dans le padel, je vous accompagne dans votre progression quel que soit votre niveau.",
     phone: "+33 6 12 34 56 78",
@@ -63,7 +63,7 @@ const coachesData = {
     reviews: 156,
     price: 40,
     location: "Paris 8ème",
-    image: "/placeholder.svg?height=300&width=300",
+    image: "/thomas_leroy.jpg",
     description:
       "Champion régional de squash, coach depuis 10 ans. Spécialisé dans l'amélioration de la condition physique et de la technique de jeu pour tous niveaux.",
     phone: "+33 6 45 67 89 12",
