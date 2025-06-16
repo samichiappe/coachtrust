@@ -18,7 +18,7 @@ const allCoaches = [
     reviews: 127,
     price: "45€/h",
     location: "Paris 16ème",
-    image: "/placeholder.svg?height=200&width=200",
+    image: "/marc_dubois.jpg",
     description: "Coach professionnel de padel avec 8 ans d'expérience",
   },
   {
@@ -40,7 +40,7 @@ const allCoaches = [
     reviews: 156,
     price: "40€/h",
     location: "Paris 8ème",
-    image: "/placeholder.svg?height=200&width=200",
+    image: "/thomas_leroy.jpg",
     description: "Champion régional de squash, coach depuis 10 ans",
   },
 ]
