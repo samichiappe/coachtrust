@@ -70,11 +70,8 @@ export default function HomePage() {
             <Badge variant="secondary" className="px-4 py-2 text-sm">
               🏸 Squash
             </Badge>
-          </div>
-        </div>
-      </section>
-
-      {/* Coaches Marketplace */}
+          </div>        </div>
+      </section>      {/* Coaches Marketplace */}
       <section className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">Nos coaches disponibles</h2>

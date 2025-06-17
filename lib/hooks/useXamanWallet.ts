@@ -3,7 +3,7 @@
 // Frontend Xaman Wallet Hook - SECURE API VERSION
 // Communicates with secure backend APIs instead of exposing credentials
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 export interface XamanWalletState {
   isConnected: boolean
@@ -51,10 +51,17 @@ export function useXamanWallet(): UseXamanWallet {
     isLoading: false,
     error: null
   })
-
-  // Load saved session on mount
-  useEffect(() => {
-    loadSavedSession()
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const saveSession = useCallback((userToken: string, address: string) => {
+    localStorage.setItem(STORAGE_KEYS.USER_TOKEN, userToken)
+    localStorage.setItem(STORAGE_KEYS.ADDRESS, address)
+  }, [])
+  
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.USER_TOKEN)
+    localStorage.removeItem(STORAGE_KEYS.ADDRESS)
+    localStorage.removeItem(STORAGE_KEYS.SESSION_ID)
   }, [])
 
   const loadSavedSession = useCallback(async () => {
@@ -63,27 +70,54 @@ export function useXamanWallet(): UseXamanWallet {
       const savedAddress = localStorage.getItem(STORAGE_KEYS.ADDRESS)
 
       if (savedToken && savedAddress) {
-        setState(prev => ({
-          ...prev,
-          userToken: savedToken,
-          address: savedAddress,
-          isConnected: true
-        }))
+        console.log('🔄 Found saved session, verifying token validity...')
+        
+        // Vérifier que le token est toujours valide
+        try {
+          const response = await fetch(`${API_BASE}/auth/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userToken: savedToken, address: savedAddress })
+          })
+
+          if (response.ok) {
+            const { valid } = await response.json()
+            if (valid) {
+              console.log('✅ Saved session is valid, auto-connecting...')
+              setState(prev => ({
+                ...prev,
+                userToken: savedToken,
+                address: savedAddress,
+                isConnected: true
+              }))
+              return
+            }
+          }
+        } catch (verifyError) {
+          console.warn('Token verification failed, will need fresh login')
+        }
+
+        // Si la vérification échoue, nettoyer la session sauvegardée
+        clearSession()
       }
     } catch (error) {
       console.error('Error loading saved session:', error)
     }
-  }, [])
+  }, [clearSession])
 
-  const saveSession = useCallback((userToken: string, address: string) => {
-    localStorage.setItem(STORAGE_KEYS.USER_TOKEN, userToken)
-    localStorage.setItem(STORAGE_KEYS.ADDRESS, address)
-  }, [])
+  // Load saved session on mount
+  useEffect(() => {
+    loadSavedSession()
+  }, [loadSavedSession])
 
-  const clearSession = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEYS.USER_TOKEN)
-    localStorage.removeItem(STORAGE_KEYS.ADDRESS)
-    localStorage.removeItem(STORAGE_KEYS.SESSION_ID)
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+    }
   }, [])
   const connect = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }))
@@ -108,9 +142,14 @@ export function useXamanWallet(): UseXamanWallet {
       // Open the sign URL
       if (typeof window !== 'undefined') {
         window.open(payload.next.always, '_blank')
-      }      // Poll for payload status
+      }      // Clear any existing polling
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
+
+      // Poll for payload status
       const payloadId = payload.uuid
-      const pollInterval = setInterval(async () => {
+      pollIntervalRef.current = setInterval(async () => {
         try {
           const statusResponse = await fetch(`${API_BASE}/auth/xaman/${payloadId}`)
           
@@ -122,35 +161,63 @@ export function useXamanWallet(): UseXamanWallet {
             
             const { payload: statusPayload } = responseData
 
+            // Check if authentication was explicitly cancelled or expired
+            if (statusPayload.meta.cancelled === true) {
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current)
+                pollIntervalRef.current = null
+              }
+              setState(prev => ({
+                ...prev,
+                isLoading: false,
+                error: 'Authentication was cancelled'
+              }))
+              return
+            }
+            
+            if (statusPayload.meta.expired === true) {
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current)
+                pollIntervalRef.current = null
+              }
+              setState(prev => ({
+                ...prev,
+                isLoading: false,
+                error: 'Authentication expired'
+              }))
+              return
+            }            // Check if authentication was completed successfully
             if (statusPayload.meta.signed === true) {
-              clearInterval(pollInterval)
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current)
+                pollIntervalRef.current = null
+              }
               
               console.log('=== SIGNED SUCCESSFULLY ===')
               console.log('Response object:', JSON.stringify(statusPayload.response, null, 2))
-              
-              // Try different field names for user token and account
-              const userToken = statusPayload.response.user_token || 
-                               statusPayload.response.userToken ||
-                               statusPayload.response.hex // Sometimes the transaction hex is the token
+                // Extract user token (UUID) and account address correctly
+              const userToken = statusPayload.response.user || // Main user UUID token
+                               statusPayload.response.user_token ||
+                               statusPayload.response.userToken // Alternative field names
               
               const address = statusPayload.response.account || 
-                             statusPayload.response.signer ||
-                             statusPayload.response.user // Different possible field names
-
-              console.log('Extracted userToken:', userToken)
+                             statusPayload.response.signer // XRPL address fields              console.log('Extracted userToken:', userToken)
               console.log('Extracted address:', address)
 
-              if (address) { // User token might not always be present for SignIn
+              if (address) { 
+                // Create a session token based on user UUID or address-based fallback
+                const sessionToken = userToken || `session_${address}_${Date.now()}`
+                
                 setState(prev => ({
                   ...prev,
                   isConnected: true,
-                  userToken: userToken || 'signin_completed', // Fallback if no token
+                  userToken: sessionToken,
                   address,
                   isLoading: false,
                   error: null
                 }))
 
-                saveSession(userToken || 'signin_completed', address)
+                saveSession(sessionToken, address)
               } else {
                 console.error('No account/address found in response')
                 setState(prev => ({
@@ -159,13 +226,23 @@ export function useXamanWallet(): UseXamanWallet {
                   error: 'Unable to extract account information'
                 }))
               }
-            } else if (statusPayload.meta.signed === false) {
-              clearInterval(pollInterval)
+            }
+            // Check if authentication was explicitly rejected
+            else if (statusPayload.meta.signed === false && statusPayload.meta.cancelled === true) {
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current)
+                pollIntervalRef.current = null
+              }
+              console.log('=== AUTHENTICATION CANCELLED BY USER ===')
               setState(prev => ({
                 ...prev,
                 isLoading: false,
-                error: 'Authentication was rejected'
+                error: 'Authentication was cancelled by user'
               }))
+            }
+            // Continue polling if signed === false AND not cancelled (waiting for user to sign)
+            else if (statusPayload.meta.signed === false && statusPayload.meta.cancelled === false) {
+              console.log('⏳ Waiting for user to sign... (signed:', statusPayload.meta.signed, ', cancelled:', statusPayload.meta.cancelled, ')')
             }
           } else {
             console.error('Status response not ok:', statusResponse.status)
@@ -173,11 +250,12 @@ export function useXamanWallet(): UseXamanWallet {
         } catch (error) {
           console.error('Polling error:', error)
         }
-      }, 2000) // Poll every 2 seconds
-
-      // Clear polling after 5 minutes timeout
+      }, 2000) // Poll every 2 seconds      // Clear polling after 5 minutes timeout
       setTimeout(() => {
-        clearInterval(pollInterval)
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current)
+          pollIntervalRef.current = null
+        }
         setState(prev => ({
           ...prev,
           isLoading: false,
