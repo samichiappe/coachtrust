@@ -1,19 +1,19 @@
 We're building a decentralized Uber for coaches on XRPL.
 
-L'utilisateur peut booker un coach, le coach à une page avec un calendrier et des créneaux horaires en fonction du jour selectionné.
+The user can book a coach, the coach has a page with a calendar and time slots depending on the day selected.
 
-Le frontend est déjà fait et continu d'être amélioré par mon co-founder.
+The frontend is already done and continues to be improved by my co-founder.
 
-Nous utiliserons xaman pour la connexion wallet
-Nous n'utiliserons pas de base de données (nous mockons les data qui devraient être stocké en base)
+We'll be using xaman for the wallet connection
+We won't be using a database (we're mocking up the data that should be stored in the database).
 
-Je m'occupe de la partie smart contracts
+I'll take care of the smart contracts
 
-Comme XRPL Features qui pourraient s'appliquer à ce projet, j'ai pensé à : Payment, Escrow, DiD (et peut etre tunnel ?)
-Qu'en penses tu ? Tu peux proposer d'autres features ?
+As XRPL Features that could be applied to this project, I thought of : Payment, Escrow, DiD (and maybe tunnel?)
+What do you think? Can you suggest any other features?
 
+You have an example for the contract with code that works in Example\xrpl-playground\src\index.ts (you'll have to look at this code before you start coding)
 
-Tu as un exemple avec du code qui fonctionne dans Example\xrpl-playground\index.ts (il faudra regarder ce code avant de commencer à coder)
 
 index.ts : import chalk from "chalk";
 import { AccountSet, AccountSetAsfFlags, AMMCreate, AMMDeposit, Client, convertStringToHex, EscrowCreate, EscrowFinish, isoTimeToRippleTime, multisign, NFTokenBurn, NFTokenCancelOffer, NFTokenCreateOffer, NFTokenCreateOfferFlags, NFTokenMint, Payment, PaymentChannelClaim, PaymentChannelCreate, PaymentChannelFund, SignerListSet, signPaymentChannelClaim, TicketCreate, TrustSet, TrustSetFlags, xrpToDrops } from "xrpl";

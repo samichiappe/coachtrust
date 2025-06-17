@@ -1,6 +1,27 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏆 Coach Booking Platform with XRPL Escrow
 
-## Getting Started
+A Next.js application for booking sports coaches with secure XRPL escrow payments.
+
+## 🔧 Current Status: Development Mode
+
+**What works:**
+- ✅ Complete booking workflow (reservation → escrow → finalization)
+- ✅ XRPL transaction building following playground patterns  
+- ✅ Crypto-condition generation (five-bells-condition)
+- ✅ Xaman wallet integration for authentication
+- ✅ Full TypeScript implementation with comprehensive testing
+
+**What's simulated:**
+- ⚠️ Transactions use mock hashes (`escrow_create_123...`) 
+- ⚠️ No real XRPL ledger interaction
+- ⚠️ Funds are not actually locked in escrow
+
+**To enable real transactions:**
+- 🔗 Integrate Xaman SDK for transaction signing
+- 🔗 Set `ENABLE_REAL_XRPL=true` in environment
+- 🔗 Configure Xaman API credentials
+
+## 🚀 Quick Start
 
 First, run the development server:
 
@@ -15,6 +36,15 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## 🧪 Testing XRPL Transactions
+
+Visit `/xrpl-test` to compare mock vs real XRPL transactions and understand the current implementation.
+
+## 📖 Documentation
+
+- [XRPL Transaction Solution](./docs/XRPL_TRANSACTION_SOLUTION.md) - Detailed explanation of mock vs real transactions
+- [Xaman Integration Guide](./docs/XAMAN_INTEGRATION.md) - How to integrate with Xaman for real transactions
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

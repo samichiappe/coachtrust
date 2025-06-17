@@ -1,4 +1,3 @@
-INSTRUCTIONS.md
 🧠 Project Overview
 This repository powers a decentralized Uber for coaches, built on XRPL (XRP Ledger).
 

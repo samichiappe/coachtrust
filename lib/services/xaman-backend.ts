@@ -191,3 +191,40 @@ export function createEscrowPayload(
     }
   }
 }
+
+// Utility function to create payment request - Following xrpl-playground patterns
+export async function createPaymentRequest(payload: SignRequestPayload): Promise<PayloadResponse> {
+  const xumm = getXummClient()
+  
+  try {
+    if (!xumm.payload) {
+      throw new Error('Payload service not available')
+    }
+
+    console.log('Creating payment payload with Xumm SDK...')
+    console.log('Payment payload structure:', JSON.stringify(payload, null, 2))
+    
+    // Validate payment structure
+    if (!payload.txjson || payload.txjson.TransactionType !== 'Payment') {
+      throw new Error('Invalid payment transaction structure')
+    }
+
+    const result = await xumm.payload.create(payload as any)
+    
+    console.log('Payment Xumm SDK response:', JSON.stringify(result, null, 2))
+    
+    if (!result) {
+      throw new Error('XUMM API returned null/undefined result for payment')
+    }
+
+    if (!result.uuid || !result.next) {
+      console.error('Invalid XUMM payment response structure:', result)
+      throw new Error('XUMM API returned invalid payment response structure')
+    }
+
+    return result as PayloadResponse
+  } catch (error) {
+    console.error('Error creating payment request:', error)
+    throw new Error(`Failed to create payment request: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
