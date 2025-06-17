@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "name": "xrpl-coach-booking",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "env": {
+    "XUMM_APIKEY": "d6b6c24f-54aa-4802-9db5-206027c9f1d0",
+    "XUMM_APISECRET": "a558da90-19b4-4b4c-97fc-c7a6d51f9aca",
+    "NEXT_PUBLIC_XRPL_NETWORK": "testnet",
+    "ENABLE_REAL_XRPL": "true"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_API_URL": "https://xrpl-coach-booking.vercel.app/api"
+    }
+  }
+}

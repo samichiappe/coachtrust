@@ -1,66 +1,125 @@
-# 🏆 Coach Booking Platform with XRPL Escrow
+# CoachTrust 🎾⚡
 
-A Next.js application for booking sports coaches with secure XRPL escrow payments.
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=flat&logo=vercel)](https://xrpl-coach-booking.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat&logo=next.js)](https://nextjs.org/)
+[![XRPL](https://img.shields.io/badge/XRPL-Testnet-blue?style=flat&logo=ripple)](https://xrpl.org/)
+[![Xaman](https://img.shields.io/badge/Wallet-Xaman-orange?style=flat)](https://xaman.app/)
 
-## 🔧 Current Status: Development Mode
+**CoachTrust** est une marketplace décentralisée qui connecte les coaches sportifs certifiés et les clients via la blockchain XRP Ledger. Rapide, sécurisée et accessible partout, la plateforme permet de réserver un coach en quelques clics pour des sports comme le tennis, le padel ou le squash, avec des paiements transparents et garantis par escrow.
 
-**What works:**
-- ✅ Complete booking workflow (reservation → escrow → finalization)
-- ✅ XRPL transaction building following playground patterns  
-- ✅ Crypto-condition generation (five-bells-condition)
-- ✅ Xaman wallet integration for authentication
-- ✅ Full TypeScript implementation with comprehensive testing
+## 🚀 Démo en ligne
 
-**What's simulated:**
-- ⚠️ Transactions use mock hashes (`escrow_create_123...`) 
-- ⚠️ No real XRPL ledger interaction
-- ⚠️ Funds are not actually locked in escrow
+- **Application** : [https://xrpl-coach-booking.vercel.app](https://xrpl-coach-booking.vercel.app)
+- **Page Coach** : [https://xrpl-coach-booking.vercel.app/coach/1](https://xrpl-coach-booking.vercel.app/coach/1)
+- **Test XRPL** : [https://xrpl-coach-booking.vercel.app/xrpl-test](https://xrpl-coach-booking.vercel.app/xrpl-test)
 
-**To enable real transactions:**
-- 🔗 Integrate Xaman SDK for transaction signing
-- 🔗 Set `ENABLE_REAL_XRPL=true` in environment
-- 🔗 Configure Xaman API credentials
+## ✨ Fonctionnalités
 
-## 🚀 Quick Start
+### 🎯 Pour les clients
+- **Connexion Xaman** : Connexion sécurisée via wallet Xaman
+- **Recherche de coaches** : Filtrage par sport, localisation et disponibilité
+- **Réservation instantanée** : Système de booking en temps réel
+- **Paiement escrow XRPL** : Sécurisation des fonds jusqu'à validation du cours
+- **Historique transparent** : Suivi de toutes les transactions sur XRPL
 
-First, run the development server:
+### 🏆 Pour les coaches
+- **Profil vérifié** : Certifications et évaluations clients
+- **Gestion d'agenda** : Disponibilités en temps réel
+- **Paiements garantis** : Libération automatique après validation
+- **Tarification flexible** : Prix personnalisés par session
 
+### 🔒 Sécurité blockchain
+- **Smart contracts XRPL** : Escrow automatisé pour la protection des fonds
+- **Transactions transparentes** : Toutes les opérations visibles sur XRPL
+- **Crypto-conditions** : Mécanisme de validation sécurisé
+- **Wallet non-custodial** : Les utilisateurs gardent le contrôle de leurs fonds
+
+## 🛠 Technologies
+
+### Frontend
+- **Next.js 14** - Framework React avec App Router
+- **TypeScript** - Typage statique
+- **Tailwind CSS** - Styling moderne et responsive
+- **Shadcn/ui** - Composants UI réutilisables
+- **Lucide React** - Icônes modernes
+
+### Blockchain & Wallets
+- **XRPL (XRP Ledger)** - Blockchain rapide et écologique
+- **Xaman (ex-XUMM)** - Wallet mobile pour signature de transactions
+- **xrpl.js** - SDK officiel XRPL
+- **Escrow smart contracts** - Protection des paiements
+
+### Backend & APIs
+- **Next.js API Routes** - API serverless
+- **Vercel** - Déploiement et hosting
+- **RESTful APIs** - Architecture moderne
+
+## 📋 Prérequis
+
+- **Node.js** 18+ 
+- **npm** 8+
+- **Wallet Xaman** installé sur mobile
+- **Compte XRPL Testnet** avec des XRP de test
+
+## 🔧 Installation
+
+### 1. Cloner le repository
+```bash
+git clone https://github.com/votre-username/xrpl-final-project.git
+cd xrpl-final-project
+```
+
+### 2. Installer les dépendances
+```bash
+npm install
+# ou
+yarn install
+# ou
+pnpm install
+# ou
+bun install
+```
+
+### 3. Configurer les variables d'environnement
+Renommez le fichier `.env.local.example` en `.env.local` et remplissez les valeurs nécessaires, y compris vos identifiants API Xaman et les paramètres XRPL.
+
+### 4. Lancer le serveur de développement
 ```bash
 npm run dev
-# or
+# ou
 yarn dev
-# or
+# ou
 pnpm dev
-# or
+# ou
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000) dans votre navigateur pour voir le résultat.
 
-## 🧪 Testing XRPL Transactions
+## 🧪 Tester les Transactions XRPL
 
-Visit `/xrpl-test` to compare mock vs real XRPL transactions and understand the current implementation.
+Visitez `/xrpl-test` pour comparer les transactions XRPL simulées et réelles et comprendre l'implémentation actuelle.
 
 ## 📖 Documentation
 
-- [XRPL Transaction Solution](./docs/XRPL_TRANSACTION_SOLUTION.md) - Detailed explanation of mock vs real transactions
-- [Xaman Integration Guide](./docs/XAMAN_INTEGRATION.md) - How to integrate with Xaman for real transactions
+- [Solution de Transaction XRPL](./docs/XRPL_TRANSACTION_SOLUTION.md) - Explication détaillée des transactions simulées et réelles
+- [Guide d'Intégration Xaman](./docs/XAMAN_INTEGRATION.md) - Comment s'intégrer à Xaman pour des transactions réelles
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Vous pouvez commencer à modifier la page en modifiant `app/page.tsx`. La page se met à jour automatiquement lorsque vous modifiez le fichier.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ce projet utilise [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) pour optimiser et charger automatiquement [Geist](https://vercel.com/font), une nouvelle famille de polices pour Vercel.
 
-## Learn More
+## En Savoir Plus
 
-To learn more about Next.js, take a look at the following resources:
+Pour en savoir plus sur Next.js, consultez les ressources suivantes:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Documentation Next.js](https://nextjs.org/docs) - en savoir plus sur les fonctionnalités et l'API de Next.js.
+- [Apprendre Next.js](https://nextjs.org/learn) - un tutoriel interactif Next.js.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Vous pouvez consulter [le dépôt GitHub de Next.js](https://github.com/vercel/next.js) - vos retours et contributions sont les bienvenus!
 
-## Deploy on Vercel
+## Déployer sur Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Le moyen le plus simple de déployer votre application Next.js est d'utiliser la [plateforme Vercel](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) des créateurs de Next.js.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Consultez notre [documentation sur le déploiement Next.js](https://nextjs.org/docs/app/building-your-application/deploying) pour plus de détails.
