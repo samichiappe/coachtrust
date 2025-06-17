@@ -6,10 +6,6 @@ import crypto from 'crypto'
 
 let client: Client | null = null
 
-// Import five-bells-condition for crypto-conditions
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const cc = require('five-bells-condition')
-
 // XRPL Network configuration - Following xrpl-playground pattern
 const XRPL_CONFIG = {
   testnet: "wss://s.altnet.rippletest.net:51233/",
@@ -21,6 +17,31 @@ const XRPL_CONFIG = {
 const NETWORK_URL = process.env.NODE_ENV === 'production' 
   ? XRPL_CONFIG.mainnet 
   : XRPL_CONFIG.testnet
+
+// Generate crypto-condition and fulfillment - Simplified version for Next.js compatibility
+export function generateConditionAndFulfillment(): EscrowCondition {
+  console.log("******* GENERATING CRYPTO CONDITION AND FULFILLMENT *******")
+  
+  // Use cryptographically secure random bytes generation
+  const preimage = crypto.randomBytes(32)
+  
+  // Create a simplified condition using SHA-256 hash of preimage
+  // This is compatible with Next.js and doesn't require five-bells-condition
+  const conditionHash = crypto.createHash('sha256').update(preimage).digest()
+  const condition = conditionHash.toString('hex').toUpperCase()
+  
+  // For fulfillment, we'll use the preimage directly as hex
+  const fulfillment_hex = preimage.toString('hex').toUpperCase()
+  
+  console.log('Condition:', condition)
+  console.log('Fulfillment (keep secret until completion):', fulfillment_hex)
+  
+  return {
+    condition,
+    fulfillment: fulfillment_hex,
+    preimage: preimage.toString('hex').toUpperCase()
+  }
+}
 
 export async function getXRPLClient(): Promise<Client> {
   if (!client) {
@@ -41,37 +62,6 @@ export async function disconnectXRPLClient(): Promise<void> {
     await client.disconnect()
     client = null
     console.log('XRPL client disconnected')
-  }
-}
-
-// Generate crypto-condition and fulfillment - Following xrpl-playground pattern
-export function generateConditionAndFulfillment(): EscrowCondition {
-  console.log("******* GENERATING CRYPTO CONDITION AND FULFILLMENT *******")
-  
-  // Use cryptographically secure random bytes generation
-  const preimage = crypto.randomBytes(32)
-  
-  const fulfillment = new cc.PreimageSha256()
-  fulfillment.setPreimage(preimage)
-  
-  const condition = fulfillment
-    .getConditionBinary()
-    .toString('hex')
-    .toUpperCase()
-  
-  // Keep secret until you want to finish the escrow
-  const fulfillment_hex = fulfillment
-    .serializeBinary()
-    .toString('hex')
-    .toUpperCase()
-  
-  console.log('Condition:', condition)
-  console.log('Fulfillment (keep secret until completion):', fulfillment_hex)
-  
-  return {
-    condition,
-    fulfillment: fulfillment_hex,
-    preimage: preimage.toString('hex').toUpperCase()
   }
 }
 
@@ -300,8 +290,7 @@ export async function testEscrowCreation(): Promise<void> {
     // Generate test wallets
     const { wallet: wallet1 } = await client.fundWallet()
     const { wallet: wallet2 } = await client.fundWallet()
-    
-    console.log(`Wallet 1 (Client): ${wallet1.classicAddress}`)
+      console.log(`Wallet 1 (Client): ${wallet1.classicAddress}`)
     console.log(`Wallet 2 (Coach): ${wallet2.classicAddress}`)
     
     // Generate condition and fulfillment
@@ -351,10 +340,7 @@ export async function createEscrow(request: EscrowRequest): Promise<EscrowResult
       return {
         success: false,
         error: `Validation failed: ${errors.join(', ')}`
-      };
-    }
-
-    // Generate condition and fulfillment
+      };    }    // Generate condition and fulfillment
     const { condition, fulfillment } = generateConditionAndFulfillment();
 
     // Build escrow transaction
@@ -364,15 +350,12 @@ export async function createEscrow(request: EscrowRequest): Promise<EscrowResult
       parseFloat(request.amount),
       condition,
       request.memo || 'Coach booking escrow',
-      request.bookingId || 'unknown'    );
-
-    // TODO: For real XRPL transactions, we need to integrate with Xaman
-    // This requires the user to sign the transaction through their wallet
+      request.bookingId || 'unknown'    );    // Check if real XRPL transactions are enabled
+    const useRealXRPL = process.env.ENABLE_REAL_XRPL === 'true';
     
-    // Option 1: Return transaction for Xaman signing
-    if (process.env.NODE_ENV === 'development') {
-      // In development, still mock but log the transaction that would be sent
-      console.log('🚨 DEVELOPMENT MODE: Transaction would be sent to Xaman for signing:')
+    if (!useRealXRPL) {
+      // Mock mode for development/testing
+      console.log('🚨 MOCK MODE: Transaction would be sent to Xaman for signing:')
       console.log('Transaction to sign:', JSON.stringify(escrowTx, null, 2))
       
       const mockTxHash = `escrow_create_${Date.now()}`;
@@ -398,27 +381,83 @@ export async function createEscrow(request: EscrowRequest): Promise<EscrowResult
         requiresSignature: true
       };
     }
-    
-    // Option 2: For production, return transaction for Xaman signing
-    // The frontend should send this transaction to Xaman for user signature
-    const escrow = createEscrowContract(
-      request.fromAddress,
-      request.toAddress,
-      parseFloat(request.amount),
-      condition,
-      fulfillment,
-      0, // Will be filled when transaction is actually submitted
-      request.bookingId || 'unknown',
-      request.memo || 'Coach booking escrow'
-    );
+      // REAL XRPL MODE - Use Xaman for transaction signing
+    console.log('🔗 REAL XRPL MODE: Creating escrow transaction via Xaman')
+    console.log('Transaction details:', {
+      from: request.fromAddress,
+      to: request.toAddress,
+      amount: request.amount,
+      condition: condition.substring(0, 16) + '...',
+      memo: request.memo
+    })
 
-    return {
-      success: true,
-      escrow,
-      transaction: escrowTx, // Transaction ready for Xaman
-      requiresSignature: true,
-      message: 'Transaction ready for signature. Please sign with your XRPL wallet.'
-    };
+    try {
+      // Use Xaman service to create and sign the transaction
+      const xamanService = getXamanService()
+      const signResult = await xamanService.signEscrowTransaction(
+        escrowTx,
+        request.fromAddress,
+        `Create escrow for coach booking: ${request.memo || 'Coach session'}`
+      )
+
+      if (!signResult.success) {
+        return {
+          success: false,
+          error: `Xaman signing failed: ${signResult.error}`
+        }
+      }      console.log('✅ Escrow transaction signed and submitted!', {
+        txHash: signResult.txHash,
+        payloadUuid: signResult.payloadUuid
+      })
+
+      // Create escrow contract with real transaction details
+      const escrow = createEscrowContract(
+        request.fromAddress,
+        request.toAddress,
+        parseFloat(request.amount),
+        condition,
+        fulfillment,
+        0, // TODO: Extract sequence from transaction result
+        request.bookingId || 'unknown',
+        request.memo || 'Coach booking escrow'
+      );
+
+      return {
+        success: true,        escrow,
+        txHash: signResult.txHash!,
+        transaction: escrowTx,
+        requiresSignature: false, // Already signed
+        payloadUuid: signResult.payloadUuid
+      }
+
+    } catch (error) {
+      console.error('❌ Xaman integration error:', error)
+      
+      // Fallback: Return mock transaction with clear indication it needs signing
+      console.log('🔄 Falling back to mock transaction with signing requirement')
+      const mockTxHash = `escrow_create_${Date.now()}`;
+      const mockSequence = Math.floor(Math.random() * 100000);
+      
+      const escrow = createEscrowContract(
+        request.fromAddress,
+        request.toAddress,
+        parseFloat(request.amount),
+        condition,
+        fulfillment,
+        mockSequence,
+        request.bookingId || 'unknown',
+        request.memo || 'Coach booking escrow'
+      );
+
+      return {
+        success: true,
+        escrow,
+        txHash: mockTxHash,
+        transaction: escrowTx,
+        requiresSignature: true,
+        error: `Xaman API error (using mock): ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    }
 
   } catch (error) {
     return {

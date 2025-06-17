@@ -85,8 +85,10 @@ export interface PaymentTransaction {
   coachAddress: string;
   amount: string; // in XRP
   type: 'payment' | 'escrow_create' | 'escrow_finish' | 'escrow_cancel' | 'refund';
-  status: 'pending' | 'confirmed' | 'failed';
+  status: 'pending' | 'confirmed' | 'failed' | 'pending_signature';
   txHash?: string;
+  payloadUuid?: string; // Xaman payload UUID for tracking
+  requiresSignature?: boolean; // Whether this transaction needs user signature
   timestamp: Date;
   blockHeight?: number;
   fees?: string; // in XRP

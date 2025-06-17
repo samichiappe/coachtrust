@@ -106,7 +106,6 @@ export default function CoachDetailPage() {
   const params = useParams()
   const coachId = Number.parseInt(params.id as string)
   const coach = coachesData[coachId as keyof typeof coachesData]
-
   // Hook Xaman pour vérifier la connexion
   const { isConnected, address } = useXamanWallet()
 

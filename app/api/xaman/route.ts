@@ -75,9 +75,7 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           )
         }
-      }
-
-      case 'sign_transaction': {
+      }      case 'sign_transaction': {
         if (!transaction || !userAddress) {
           return NextResponse.json(
             { success: false, error: 'Transaction and user address are required' },
@@ -85,18 +83,32 @@ export async function POST(request: NextRequest) {
           )
         }
 
-        const result = await xamanService.signEscrowTransaction(
-          transaction,
-          userAddress,
-          `Sign this ${transaction.TransactionType} transaction`
-        )
-
-        return NextResponse.json({
-          success: result.success,
-          txHash: result.txHash,
-          error: result.error,
-          payloadUuid: result.payloadUuid
+        // Create payload directly (avoid infinite loop)
+        const payloadResult = await xamanService.createPayload({
+          txjson: transaction,
+          options: {
+            submit: true,
+            instruction: `Sign this ${transaction.TransactionType} transaction`
+          }
         })
+
+        if (payloadResult.success && payloadResult.payload) {
+          // For now, return payload info for user to scan QR code
+          // In production, you might want to implement polling
+          return NextResponse.json({
+            success: true,
+            txHash: null, // Will be available after user signs
+            payloadUuid: payloadResult.payload.uuid,
+            qrCode: payloadResult.payload.refs.qr_png,
+            deeplink: payloadResult.payload.next.always,
+            message: 'Payload created. User needs to sign via Xaman app.'
+          })
+        } else {
+          return NextResponse.json({
+            success: false,
+            error: payloadResult.error || 'Failed to create payload'
+          })
+        }
       }
 
       default:

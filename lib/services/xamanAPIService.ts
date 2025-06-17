@@ -4,7 +4,9 @@
  * Uses REST API instead of deprecated xumm-sdk
  */
 
-interface XamanPayloadRequest {
+import { XamanPayloadResponse } from '@/lib/types/xaman';
+
+interface LocalXamanPayloadRequest {
   txjson: any
   user_token?: string
   options?: {
@@ -15,7 +17,7 @@ interface XamanPayloadRequest {
   }
 }
 
-interface XamanPayloadResponse {
+interface LocalXamanPayloadResponse {
   uuid: string
   next: {
     always: string
@@ -30,7 +32,7 @@ interface XamanPayloadResponse {
   pushed: boolean
 }
 
-interface XamanPayloadResult {
+interface LocalXamanPayloadResult {
   payload: {
     tx_type: string
     tx_destination: string
@@ -86,10 +88,9 @@ export class XamanAPIService {
   /**
    * Create a payload for user to sign
    * Following official Xaman documentation patterns
-   */
-  async createPayload(request: XamanPayloadRequest): Promise<{
+   */  async createPayload(request: LocalXamanPayloadRequest): Promise<{
     success: boolean
-    payload?: XamanPayloadResponse
+    payload?: LocalXamanPayloadResponse
     error?: string
   }> {
     try {
@@ -139,10 +140,9 @@ export class XamanAPIService {
   /**
    * Get payload result (after user signs)
    * Following official Xaman documentation patterns
-   */
-  async getPayloadResult(payloadUuid: string): Promise<{
+   */  async getPayloadResult(payloadUuid: string): Promise<{
     success: boolean
-    result?: XamanPayloadResult
+    result?: LocalXamanPayloadResult
     error?: string
   }> {
     try {
@@ -162,7 +162,7 @@ export class XamanAPIService {
         }
       }
 
-      const result: XamanPayloadResult = await response.json()
+      const result: LocalXamanPayloadResult = await response.json()
       
       console.log('✅ Xaman payload result:', {
         uuid: payloadUuid,
@@ -195,7 +195,7 @@ export class XamanAPIService {
     pollIntervalMs: number = 2000 // 2 seconds
   ): Promise<{
     success: boolean
-    result?: XamanPayloadResult
+    result?: LocalXamanPayloadResult
     error?: string
     txHash?: string
   }> {
@@ -247,10 +247,9 @@ export class XamanAPIService {
       error: 'Signature timeout - user did not sign within time limit'
     }
   }
-
   /**
    * Create and wait for escrow transaction signature
-   * High-level function for escrow transactions
+   * High-level function for escrow transactions (uses API endpoint to avoid CORS)
    */
   async signEscrowTransaction(
     transaction: any,
@@ -269,37 +268,93 @@ export class XamanAPIService {
         amount: transaction.Amount
       })
 
-      // Create payload
-      const payloadRequest: XamanPayloadRequest = {
-        txjson: transaction,
-        options: {
-          submit: true, // Auto-submit after signing
-          instruction: instruction || `Sign this ${transaction.TransactionType} transaction`
-        }
+      // Use our API endpoint instead of calling Xaman directly (avoids CORS)
+      const response = await fetch('/api/xaman', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'sign_transaction',
+          transaction: transaction,
+          userAddress: userAccount || transaction.Account
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`)
       }
 
-      const createResult = await this.createPayload(payloadRequest)
-      if (!createResult.success || !createResult.payload) {
+      const result = await response.json()
+
+      if (result.success) {
+        console.log('✅ Xaman transaction signed successfully via API:', {
+          txHash: result.txHash,
+          payloadUuid: result.payloadUuid
+        })
+
+        return {
+          success: true,
+          txHash: result.txHash,
+          payloadUuid: result.payloadUuid
+        }
+      } else {
         return {
           success: false,
-          error: createResult.error || 'Failed to create payload'
+          error: result.error || 'Transaction signing failed'
         }
-      }
-
-      const payloadUuid = createResult.payload.uuid
-
-      // Wait for signature
-      const signResult = await this.waitForSignature(payloadUuid)
-      
-      return {
-        success: signResult.success,
-        txHash: signResult.txHash,
-        error: signResult.error,
-        payloadUuid
       }
 
     } catch (error) {
       console.error('❌ Escrow transaction signing failed:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+  /**
+   * Get payload details including QR code and deep links
+   * Used for displaying signing interface to users
+   */
+  async getPayloadDetails(payloadUuid: string): Promise<{
+    success: boolean
+    payload?: XamanPayloadResponse
+    error?: string
+  }> {
+    try {
+      console.log('🔍 Getting Xaman payload details:', payloadUuid)
+
+      const response = await fetch(`${this.baseUrl}/payload/${payloadUuid}`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Xaman details error:', response.status, errorText)
+        return {
+          success: false,
+          error: `Xaman details error: ${response.status} - ${errorText}`
+        }
+      }
+
+      const payload: XamanPayloadResponse = await response.json()
+      
+      console.log('✅ Xaman payload details:', {
+        uuid: payloadUuid,
+        hasQR: !!payload.refs?.qr_png,
+        hasDeepLink: !!payload.next?.always,
+        pushed: payload.pushed
+      })
+
+      return {
+        success: true,
+        payload
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to get Xaman payload details:', error)
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -327,4 +382,4 @@ export function getXamanService(): XamanAPIService {
   return xamanService
 }
 
-export { XamanPayloadRequest, XamanPayloadResponse, XamanPayloadResult }
+export type { LocalXamanPayloadRequest, LocalXamanPayloadResponse, LocalXamanPayloadResult }

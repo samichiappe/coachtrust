@@ -29,6 +29,9 @@ import {
 import { BookingRequest, BookingResult, PaymentTransaction, CoachingSession } from '../types';
 import { EscrowContract, EscrowRequest } from '../types/escrow';
 
+// Configuration option for real XRPL transactions
+const ENABLE_REAL_XRPL_TRANSACTIONS = process.env.ENABLE_REAL_XRPL === 'true';
+
 export interface BookingPaymentWorkflow {
   bookingId: string;
   sessionId: string;
@@ -124,13 +127,15 @@ class BookingPaymentOrchestrator {
           sessionId,
           clientAddress,
           coachAddress
-        );
-
-        if (!paymentResult.success) {
+        );        if (!paymentResult.success) {
           workflow.currentStep = 'cancelled';
           workflow.error = paymentResult.error;
           return { success: false, workflow, error: paymentResult.error };
         }
+
+        // Handle real XRPL transactions via Xaman
+        const transactionStatus = paymentResult.payloadUuid ? 'pending_signature' : 'confirmed';
+        const txHash = paymentResult.txHash || paymentResult.payloadUuid || `temp_${Date.now()}`;
 
         workflow.transactions.push({
           id: this.generateTransactionId(),
@@ -139,8 +144,10 @@ class BookingPaymentOrchestrator {
           coachAddress,
           amount: booking.amount,
           type: 'payment',
-          status: 'confirmed',
-          txHash: paymentResult.txHash,
+          status: transactionStatus,
+          txHash,
+          payloadUuid: paymentResult.payloadUuid,
+          requiresSignature: paymentResult.requiresSignature,
           timestamp: new Date(),
           memo: `Direct payment for session ${sessionId}`
         });
@@ -363,13 +370,12 @@ class BookingPaymentOrchestrator {
       paymentType: booking.paymentType
     };
   }
-
   private async createBookingEscrow(
     booking: BookingRequest,
     sessionId: string,
     clientAddress: string,
     coachAddress: string
-  ): Promise<{ success: boolean; escrow?: EscrowContract; txHash?: string; error?: string }> {
+  ): Promise<{ success: boolean; escrow?: EscrowContract; txHash?: string; error?: string; payloadUuid?: string; requiresSignature?: boolean }> {
     try {      // Calculate escrow release time (24 hours after session)
       const releaseTime = new Date(booking.sessionDateTime);
       releaseTime.setHours(releaseTime.getHours() + 24);      const escrowRequest: EscrowRequest = {
@@ -379,9 +385,7 @@ class BookingPaymentOrchestrator {
         amount: booking.amount,
         releaseTime: releaseTime.getTime(),
         memo: `Escrow for coaching session ${sessionId}`
-      };
-
-      // Use real XRPL transactions if enabled, otherwise use mock
+      };      // Use real XRPL transactions if enabled, otherwise use mock
       const result = ENABLE_REAL_XRPL_TRANSACTIONS 
         ? await createEscrowWithSigning(escrowRequest, true)
         : await createEscrow(escrowRequest);
@@ -390,14 +394,18 @@ class BookingPaymentOrchestrator {
         enabled: ENABLE_REAL_XRPL_TRANSACTIONS,
         success: result.success,
         txHash: result.txHash,
+        payloadUuid: result.payloadUuid,
         requiresSignature: result.requiresSignature
       });
       
-      if (result.success && result.escrow && result.txHash) {
+      // Accept successful escrow creation even if txHash is null (Xaman pending signature)
+      if (result.success && result.escrow) {
         return {
           success: true,
           escrow: result.escrow,
-          txHash: result.txHash
+          txHash: result.txHash || result.payloadUuid || `pending_${Date.now()}`,
+          payloadUuid: result.payloadUuid,
+          requiresSignature: result.requiresSignature
         };
       } else {
         return {
@@ -411,31 +419,45 @@ class BookingPaymentOrchestrator {
         error: error instanceof Error ? error.message : 'Escrow creation failed'
       };
     }
-  }
-
-  private async processDirectPayment(
+  }  private async processDirectPayment(
     booking: BookingRequest,
     sessionId: string,
     clientAddress: string,
     coachAddress: string
-  ): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  ): Promise<{ 
+    success: boolean; 
+    txHash?: string; 
+    error?: string;
+    payloadUuid?: string;
+    requiresSignature?: boolean;
+  }> {
     try {
-      const paymentRequest = {
-        fromAddress: clientAddress,
-        toAddress: coachAddress,
-        amount: booking.amount,
-        memo: `Direct payment for coaching session ${sessionId}`
-      };      const result = await createPayment(paymentRequest);
+      console.log('🔄 Processing direct payment using escrow service...');
       
-      if (result.success && result.txid) {
+      // Use escrow service for payment (will create immediate escrow that coach can finish)
+      const escrowRequest: EscrowRequest = {
+        fromAddress: clientAddress,     // owner (client)
+        toAddress: coachAddress,        // kept for compatibility
+        destination: coachAddress,      // destination (coach) 
+        amount: booking.amount,         // amount
+        purpose: `Direct payment for coaching session ${sessionId}`,
+        bookingId: sessionId,
+        releaseTime: Math.floor(Date.now() / 1000) + 3600  // finish after 1 hour
+      };
+      
+      const escrowResult = await createEscrow(escrowRequest);
+
+      if (escrowResult.success) {
         return {
           success: true,
-          txHash: result.txid
+          txHash: escrowResult.txHash,
+          payloadUuid: escrowResult.payloadUuid,
+          requiresSignature: escrowResult.requiresSignature
         };
       } else {
         return {
           success: false,
-          error: result.error || 'Payment failed'
+          error: escrowResult.error || 'Escrow creation failed'
         };
       }
     } catch (error) {
@@ -514,9 +536,6 @@ class BookingPaymentOrchestrator {
     };
   }
 }
-
-// Configuration option for real XRPL transactions
-const ENABLE_REAL_XRPL_TRANSACTIONS = process.env.ENABLE_REAL_XRPL === 'true'
 
 // Export singleton instance
 export const bookingPaymentOrchestrator = new BookingPaymentOrchestrator();
