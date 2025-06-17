@@ -239,3 +239,38 @@ export class MockPaymentService {
 
 // Export services
 export const mockPaymentService = new MockPaymentService()
+
+/**
+ * High-level function to create a payment
+ */
+export async function createPayment(request: PaymentRequest): Promise<PaymentResult> {
+  try {
+    // Validate the request
+    if (!isValidXRPAddress(request.toAddress)) {
+      return {
+        success: false,
+        error: 'Invalid destination address'
+      };
+    }
+
+    if (!request.amount || parseFloat(request.amount) <= 0) {
+      return {
+        success: false,
+        error: 'Invalid amount'
+      };
+    }
+
+    // For now, mock the payment submission and return a mock result
+    // In a real implementation, this would submit to XRPL via Xaman
+    const mockTxHash = `payment_${Date.now()}`;    return {
+      success: true,
+      txid: mockTxHash
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Payment creation failed'
+    };
+  }
+}

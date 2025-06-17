@@ -5,8 +5,27 @@
  */
 
 import { Client, xrpToDrops } from 'xrpl';
-import { escrowService } from './escrowService';
-import { xrplPaymentService } from './xrplPaymentService';
+import { 
+  createEscrowContract, 
+  generateConditionAndFulfillment, 
+  buildXRPLEscrowCreate,
+  buildXRPLEscrowFinish,
+  buildXRPLEscrowCancel,
+  getXRPLClient as getEscrowClient,
+  disconnectXRPLClient as disconnectEscrowClient,
+  createEscrow,
+  createEscrowWithSigning,
+  finalizeEscrow,
+  cancelEscrow
+} from './escrowService';
+import { 
+  createPaymentTransaction,
+  buildXRPLPayment,
+  getXRPLClient as getPaymentClient,
+  disconnectXRPLClient as disconnectPaymentClient,
+  isValidXRPAddress,
+  createPayment
+} from './xrplPaymentService';
 import { BookingRequest, BookingResult, PaymentTransaction, CoachingSession } from '../types';
 import { EscrowContract, EscrowRequest } from '../types/escrow';
 
@@ -177,15 +196,14 @@ class BookingPaymentOrchestrator {
     }
 
     try {
-      workflow.currentStep = 'escrow_finalization';
-
-      // Finalize escrow using escrow service
-      const finalizationResult = await escrowService.finalizeEscrow(
+      workflow.currentStep = 'escrow_finalization';      // Finalize escrow using escrow service
+      // finisherAddress = coach (who finishes), ownerAddress = client (who created)
+      const finalizationResult = await finalizeEscrow(
         workflow.escrow.sequence,
         workflow.escrow.condition,
         fulfillment,
-        workflow.session?.clientAddress || '',
-        workflow.booking.coachId.toString()
+        workflow.booking.coachId.toString(),      // finisherAddress (coach)
+        workflow.session?.clientAddress || ''    // ownerAddress (client)
       );
 
       if (!finalizationResult.success) {
@@ -245,13 +263,12 @@ class BookingPaymentOrchestrator {
       };
     }
 
-    try {
-      // If escrow exists, cancel it
+    try {      // If escrow exists, cancel it
       if (workflow.escrow) {
-        const cancellationResult = await escrowService.cancelEscrow(
+        const cancellationResult = await cancelEscrow(
           workflow.escrow.sequence,
-          workflow.session?.clientAddress || '',
-          workflow.booking.coachId.toString()
+          workflow.session?.clientAddress || '',    // cancellerAddress (client)
+          workflow.session?.clientAddress || ''     // ownerAddress (client)
         );
 
         if (cancellationResult.success) {
@@ -353,20 +370,28 @@ class BookingPaymentOrchestrator {
     clientAddress: string,
     coachAddress: string
   ): Promise<{ success: boolean; escrow?: EscrowContract; txHash?: string; error?: string }> {
-    try {
-      // Calculate escrow release time (24 hours after session)
+    try {      // Calculate escrow release time (24 hours after session)
       const releaseTime = new Date(booking.sessionDateTime);
-      releaseTime.setHours(releaseTime.getHours() + 24);
-
-      const escrowRequest: EscrowRequest = {
+      releaseTime.setHours(releaseTime.getHours() + 24);      const escrowRequest: EscrowRequest = {
         fromAddress: clientAddress,
         toAddress: coachAddress,
+        destination: coachAddress,
         amount: booking.amount,
-        releaseTime,
+        releaseTime: releaseTime.getTime(),
         memo: `Escrow for coaching session ${sessionId}`
       };
 
-      const result = await escrowService.createEscrow(escrowRequest);
+      // Use real XRPL transactions if enabled, otherwise use mock
+      const result = ENABLE_REAL_XRPL_TRANSACTIONS 
+        ? await createEscrowWithSigning(escrowRequest, true)
+        : await createEscrow(escrowRequest);
+      
+      console.log(`${ENABLE_REAL_XRPL_TRANSACTIONS ? '🔗 Real XRPL' : '🧪 Mock'} escrow transaction:`, {
+        enabled: ENABLE_REAL_XRPL_TRANSACTIONS,
+        success: result.success,
+        txHash: result.txHash,
+        requiresSignature: result.requiresSignature
+      });
       
       if (result.success && result.escrow && result.txHash) {
         return {
@@ -400,14 +425,12 @@ class BookingPaymentOrchestrator {
         toAddress: coachAddress,
         amount: booking.amount,
         memo: `Direct payment for coaching session ${sessionId}`
-      };
-
-      const result = await xrplPaymentService.createPayment(paymentRequest);
+      };      const result = await createPayment(paymentRequest);
       
-      if (result.success && result.txHash) {
+      if (result.success && result.txid) {
         return {
           success: true,
-          txHash: result.txHash
+          txHash: result.txid
         };
       } else {
         return {
@@ -491,6 +514,9 @@ class BookingPaymentOrchestrator {
     };
   }
 }
+
+// Configuration option for real XRPL transactions
+const ENABLE_REAL_XRPL_TRANSACTIONS = process.env.ENABLE_REAL_XRPL === 'true'
 
 // Export singleton instance
 export const bookingPaymentOrchestrator = new BookingPaymentOrchestrator();

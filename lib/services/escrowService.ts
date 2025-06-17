@@ -1,6 +1,7 @@
 // XRPL Escrow Service - Based on xrpl-playground example
 import { Client, EscrowCreate, EscrowFinish, EscrowCancel, xrpToDrops, convertStringToHex } from 'xrpl'
 import { EscrowContract, EscrowResult, EscrowRequest, EscrowCondition, EscrowStatus } from '@/lib/types/escrow'
+import { getXamanService } from './xamanAPIService'
 import crypto from 'crypto'
 
 let client: Client | null = null
@@ -144,9 +145,11 @@ export function buildXRPLEscrowCreate(
 }
 
 // Build XRPL EscrowFinish transaction - Following xrpl-playground pattern
+// IMPORTANT: Account = who finishes the escrow (can be destination or anyone with fulfillment)
+//           Owner = who originally created the escrow
 export function buildXRPLEscrowFinish(
-  account: string,
-  owner: string,
+  account: string,      // Account who finishes the escrow
+  owner: string,        // Owner who created the escrow  
   condition: string,
   fulfillment: string,
   offerSequence: number
@@ -259,11 +262,12 @@ export function validateEscrowRequest(request: EscrowRequest & { toAddress?: str
   }
 
   // Accept both amount and amount (no alias needed)
-  if (!request.amount || request.amount <= 0) {
+  const amountValue = parseFloat(request.amount)
+  if (!request.amount || amountValue <= 0) {
     errors.push('Amount must be greater than 0')
-  } else if (request.amount < 0.000001) {
+  } else if (amountValue < 0.000001) {
     errors.push('Amount must be at least 0.000001 XRP')
-  } else if (request.amount > 100000) {
+  } else if (amountValue > 100000) {
     errors.push('Amount cannot exceed 100,000 XRP')
   }
 
@@ -333,5 +337,289 @@ export async function testEscrowCreation(): Promise<void> {
     console.error('Test escrow creation failed:', error)
   } finally {
     await disconnectXRPLClient()
+  }
+}
+
+/**
+ * High-level function to create an escrow
+ */
+export async function createEscrow(request: EscrowRequest): Promise<EscrowResult> {
+  try {
+    // Validate the request
+    const errors = validateEscrowRequest(request);
+    if (errors.length > 0) {
+      return {
+        success: false,
+        error: `Validation failed: ${errors.join(', ')}`
+      };
+    }
+
+    // Generate condition and fulfillment
+    const { condition, fulfillment } = generateConditionAndFulfillment();
+
+    // Build escrow transaction
+    const escrowTx = buildXRPLEscrowCreate(
+      request.fromAddress,
+      request.toAddress,
+      parseFloat(request.amount),
+      condition,
+      request.memo || 'Coach booking escrow',
+      request.bookingId || 'unknown'    );
+
+    // TODO: For real XRPL transactions, we need to integrate with Xaman
+    // This requires the user to sign the transaction through their wallet
+    
+    // Option 1: Return transaction for Xaman signing
+    if (process.env.NODE_ENV === 'development') {
+      // In development, still mock but log the transaction that would be sent
+      console.log('🚨 DEVELOPMENT MODE: Transaction would be sent to Xaman for signing:')
+      console.log('Transaction to sign:', JSON.stringify(escrowTx, null, 2))
+      
+      const mockTxHash = `escrow_create_${Date.now()}`;
+      const mockSequence = Math.floor(Math.random() * 100000);
+      
+      // Create escrow contract
+      const escrow = createEscrowContract(
+        request.fromAddress,
+        request.toAddress,
+        parseFloat(request.amount),
+        condition,
+        fulfillment,
+        mockSequence,
+        request.bookingId || 'unknown',
+        request.memo || 'Coach booking escrow'
+      );
+
+      return {
+        success: true,
+        escrow,
+        txHash: mockTxHash,
+        transaction: escrowTx, // Include the transaction for potential Xaman integration
+        requiresSignature: true
+      };
+    }
+    
+    // Option 2: For production, return transaction for Xaman signing
+    // The frontend should send this transaction to Xaman for user signature
+    const escrow = createEscrowContract(
+      request.fromAddress,
+      request.toAddress,
+      parseFloat(request.amount),
+      condition,
+      fulfillment,
+      0, // Will be filled when transaction is actually submitted
+      request.bookingId || 'unknown',
+      request.memo || 'Coach booking escrow'
+    );
+
+    return {
+      success: true,
+      escrow,
+      transaction: escrowTx, // Transaction ready for Xaman
+      requiresSignature: true,
+      message: 'Transaction ready for signature. Please sign with your XRPL wallet.'
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Escrow creation failed'
+    };
+  }
+}
+
+/**
+ * High-level function to finalize an escrow
+ * Following XRPL playground pattern: Account (finisher), Owner (creator)
+ */
+export async function finalizeEscrow(
+  sequence: number,
+  condition: string,
+  fulfillment: string,
+  finisherAddress: string,  // Account who finishes (usually destination/coach)
+  ownerAddress: string     // Owner who created (usually source/client)
+): Promise<EscrowResult> {
+  try {
+    // Build finalization transaction - Following xrpl-playground pattern
+    // Account = finisher (usually destination), Owner = creator (usually source)
+    const finishTx = buildXRPLEscrowFinish(
+      finisherAddress,  // Account (finisher)
+      ownerAddress,     // Owner (creator)
+      condition,
+      fulfillment,
+      sequence
+    );
+
+    // For now, mock the transaction submission
+    const mockTxHash = `escrow_finish_${Date.now()}`;
+
+    return {
+      success: true,
+      txHash: mockTxHash
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Escrow finalization failed'
+    };
+  }
+}
+
+/**
+ * High-level function to cancel an escrow
+ * Following XRPL playground pattern: Account (canceller), Owner (creator)
+ */
+export async function cancelEscrow(
+  sequence: number,
+  cancellerAddress: string,  // Account who cancels (usually creator or destination)
+  ownerAddress: string       // Owner who created the escrow
+): Promise<EscrowResult> {
+  try {
+    // Build cancellation transaction
+    const cancelTx = buildXRPLEscrowCancel(
+      cancellerAddress,
+      ownerAddress,
+      sequence
+    );
+
+    // For now, mock the transaction submission
+    const mockTxHash = `escrow_cancel_${Date.now()}`;
+
+    return {
+      success: true,
+      txHash: mockTxHash
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Escrow cancellation failed'
+    };
+  }
+}
+
+// Function to submit real XRPL transaction via Xaman
+// Uses modern Xaman REST API following official documentation
+export async function submitEscrowViaXaman(
+  transaction: any,
+  userAddress: string
+): Promise<{ success: boolean, txHash?: string, error?: string, payloadUuid?: string }> {
+  try {
+    console.log('🔗 Submitting XRPL transaction via Xaman API...')
+    console.log('📝 Transaction details:', {
+      type: transaction.TransactionType,
+      account: transaction.Account,
+      destination: transaction.Destination || transaction.Owner,
+      amount: transaction.Amount
+    })
+
+    // Get Xaman service
+    const xamanService = getXamanService()
+    
+    // Create instruction based on transaction type
+    let instruction = ''
+    switch (transaction.TransactionType) {
+      case 'EscrowCreate':
+        instruction = `Create escrow of ${transaction.Amount} drops to ${transaction.Destination}`
+        break
+      case 'EscrowFinish':
+        instruction = `Finish escrow and release funds`
+        break
+      case 'EscrowCancel':
+        instruction = `Cancel escrow and return funds`
+        break
+      default:
+        instruction = `Sign ${transaction.TransactionType} transaction`
+    }
+
+    // Sign transaction via Xaman
+    const result = await xamanService.signEscrowTransaction(
+      transaction,
+      userAddress,
+      instruction
+    )
+    
+    if (result.success) {
+      console.log('✅ XRPL transaction signed and submitted via Xaman:', {
+        txHash: result.txHash,
+        payloadUuid: result.payloadUuid
+      })
+      
+      return {
+        success: true,
+        txHash: result.txHash,
+        payloadUuid: result.payloadUuid
+      }
+    } else {
+      console.error('❌ Xaman transaction signing failed:', result.error)
+      return {
+        success: false,
+        error: result.error || 'Transaction signing failed',
+        payloadUuid: result.payloadUuid
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Xaman transaction submission failed:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Transaction submission failed'
+    }
+  }
+}
+
+// Function to create escrow with optional Xaman integration
+export async function createEscrowWithSigning(
+  request: EscrowRequest,
+  submitViaXaman: boolean = false
+): Promise<EscrowResult> {
+  try {
+    // First create the unsigned transaction
+    const result = await createEscrow(request)
+    
+    if (!result.success || !result.transaction) {
+      return result
+    }
+    
+    // If Xaman integration requested, submit the transaction
+    if (submitViaXaman) {
+      console.log('🚀 Submitting escrow transaction via Xaman...')
+      
+      const xamanResult = await submitEscrowViaXaman(
+        result.transaction,
+        request.fromAddress
+      )
+        if (xamanResult.success) {
+        // Update the escrow with real transaction hash
+        if (result.escrow) {
+          result.escrow.status.state = 'pending_completion'
+          result.escrow.status.message = 'Escrow submitted to XRPL, waiting for confirmation'
+        }
+        
+        return {
+          ...result,
+          txHash: xamanResult.txHash,
+          payloadUuid: xamanResult.payloadUuid,
+          requiresSignature: false,
+          message: 'Escrow transaction submitted successfully to XRPL'
+        }
+      } else {
+        return {
+          success: false,
+          error: `Xaman submission failed: ${xamanResult.error}`,
+          payloadUuid: xamanResult.payloadUuid
+        }
+      }
+    }
+    
+    // Return unsigned transaction for manual Xaman integration
+    return result
+    
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Escrow creation with signing failed'
+    }
   }
 }

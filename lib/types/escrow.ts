@@ -31,11 +31,14 @@ export interface EscrowCondition {
 }
 
 export interface EscrowRequest {
+  fromAddress: string
+  toAddress: string
   destination: string
-  amount: number // In XRP
+  amount: string // In XRP (as string for precision)
   purpose?: string
   bookingId?: string
   memo?: string
+  releaseTime?: number
 }
 
 export interface EscrowResult {
@@ -43,6 +46,11 @@ export interface EscrowResult {
   escrow?: EscrowContract
   error?: string
   payloadId?: string
+  txHash?: string
+  transaction?: any // XRPL transaction object for Xaman signing
+  requiresSignature?: boolean
+  message?: string
+  payloadUuid?: string // Xaman payload UUID for tracking
 }
 
 export interface EscrowFinishRequest {

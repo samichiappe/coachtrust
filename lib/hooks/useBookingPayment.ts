@@ -30,7 +30,7 @@ export interface UseBookingPaymentReturn {
 }
 
 export const useBookingPayment = (): UseBookingPaymentReturn => {
-  const { userAddress, isConnected } = useXamanWallet();
+  const { address: userAddress, isConnected } = useXamanWallet();
   const [state, setState] = useState<BookingPaymentState>({
     isLoading: false,
     currentWorkflow: null,
