@@ -6,22 +6,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
-import { MapPin, Star, Clock, Phone, Mail, Award } from "lucide-react"
+import { MapPin, Star, Clock, Phone, Mail, Award, Wallet } from "lucide-react"
 import Image from "next/image"
+import PaymentComponent from "@/components/PaymentComponent"
+import { PaymentResult } from "@/lib/xrpl/payment"
+import { Coach } from "@/lib/types"
+import { useXamanWallet } from "@/lib/hooks/useXamanWallet"
+import XamanConnectButton from "@/components/XamanConnectButton"
 
-const coachesData = {
+const coachesData: { [key: number]: Coach } = {
   1: {
+    id: 1,
     name: "Marc Dubois",
     sport: "Padel",
     rating: 4.9,
     reviews: 127,
     price: 45,
+    hourlyRate: 25, // XRP hourly rate
     location: "Paris 16ème",
     image: "/marc_dubois.jpg",
     description:
       "Coach professionnel de padel avec 8 ans d'expérience. Ancien joueur de tennis reconverti dans le padel, je vous accompagne dans votre progression quel que soit votre niveau.",
     phone: "+33 6 12 34 56 78",
     email: "marc.dubois@coachtrust.com",
+    xrplAddress: "rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH", // Mock XRPL address
     certifications: ["Diplôme d'État", "Formation FFT", "Certification Padel Pro"],
     courts: [
       { name: "Padel Club Paris", address: "123 Avenue Foch, 75016 Paris" },
@@ -32,19 +40,21 @@ const coachesData = {
       "2024-01-16": ["08:00", "11:00", "15:00"],
       "2024-01-17": ["09:30", "13:00", "17:00"],
     },
-  },
-  2: {
+  },  2: {
+    id: 2,
     name: "Sophie Martin",
     sport: "Tennis",
     rating: 4.8,
     reviews: 89,
     price: 55,
+    hourlyRate: 30, // XRP hourly rate
     location: "Neuilly-sur-Seine",
     image: "/sophie_martin.jpg",
     description:
       "Ex-joueuse professionnelle, spécialisée dans le perfectionnement technique et mental. J'ai participé à plusieurs tournois internationaux avant de me consacrer à l'enseignement.",
     phone: "+33 6 98 76 54 32",
     email: "sophie.martin@coachtrust.com",
+    xrplAddress: "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe", // Mock XRPL address
     certifications: ["Ex-Pro WTA", "Diplôme d'État", "Formation mentale"],
     courts: [
       { name: "Tennis Club Neuilly", address: "78 Boulevard Bineau, 92200 Neuilly" },
@@ -55,19 +65,21 @@ const coachesData = {
       "2024-01-16": ["09:00", "11:30", "15:30", "17:00"],
       "2024-01-17": ["08:30", "13:30", "16:30"],
     },
-  },
-  3: {
+  },  3: {
+    id: 3,
     name: "Thomas Leroy",
     sport: "Squash",
     rating: 4.7,
     reviews: 156,
     price: 40,
+    hourlyRate: 22, // XRP hourly rate
     location: "Paris 8ème",
     image: "/thomas_leroy.jpg",
     description:
       "Champion régional de squash, coach depuis 10 ans. Spécialisé dans l'amélioration de la condition physique et de la technique de jeu pour tous niveaux.",
     phone: "+33 6 45 67 89 12",
     email: "thomas.leroy@coachtrust.com",
+    xrplAddress: "rLNaPoKeeBjZe2qs6x52yVPZpZ8td4dc6w", // Mock XRPL address
     certifications: ["Champion Régional", "Diplôme d'État", "Formation Fitness"],
     courts: [
       { name: "Squash Club Opéra", address: "12 Rue Scribe, 75009 Paris" },
@@ -86,14 +98,18 @@ export default function CoachDetailPage() {
   const coachId = Number.parseInt(params.id as string)
   const coach = coachesData[coachId as keyof typeof coachesData]
 
+  // Hook Xaman pour vérifier la connexion
+  const { isConnected, address } = useXamanWallet()
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [selectedTime, setSelectedTime] = useState<string>("")
   const [selectedCourt, setSelectedCourt] = useState<string>("")
+  const [showPayment, setShowPayment] = useState(false)
+  const [sessionDuration, setSessionDuration] = useState(60) // Default 1 hour
 
   if (!coach) {
     return <div>Coach non trouvé</div>
   }
-
   const formatDate = (date: Date) => {
     return date.toISOString().split("T")[0]
   }
@@ -101,7 +117,20 @@ export default function CoachDetailPage() {
   const getAvailableSlots = () => {
     if (!selectedDate) return []
     const dateStr = formatDate(selectedDate)
-    return []
+    return coach.availability[dateStr] || []
+  }
+
+  const calculateSessionAmount = () => {
+    return ((coach.hourlyRate * sessionDuration) / 60).toFixed(2)
+  }
+
+  const createSessionDateTime = () => {
+    if (!selectedDate || !selectedTime) return new Date()
+    
+    const [hours, minutes] = selectedTime.split(':').map(Number)
+    const sessionDate = new Date(selectedDate)
+    sessionDate.setHours(hours, minutes, 0, 0)
+    return sessionDate
   }
 
   const handleBooking = () => {
@@ -109,11 +138,20 @@ export default function CoachDetailPage() {
       alert("Veuillez sélectionner une date, un horaire et un terrain")
       return
     }
+    setShowPayment(true)
+  }
 
-    // Ici vous intégreriez l'escrow XRP Ledger
-    alert(
-      `Réservation confirmée !\nCoach: ${coach.name}\nDate: ${selectedDate.toLocaleDateString()}\nHeure: ${selectedTime}\nTerrain: ${selectedCourt}\nPrix: ${coach.price}€`,
-    )
+  const handlePaymentSuccess = (result: PaymentResult) => {
+    alert(`✅ Paiement réussi!\n\nTransaction: ${result.txHash}\nType: ${result.paymentType}\nMontant: ${result.amount} XRP`)
+    // Reset form
+    setShowPayment(false)
+    setSelectedDate(undefined)
+    setSelectedTime("")
+    setSelectedCourt("")
+  }
+
+  const handlePaymentError = (error: string) => {
+    alert(`❌ Erreur de paiement: ${error}`)
   }
 
   return (
@@ -149,9 +187,9 @@ export default function CoachDetailPage() {
                         <span>({coach.reviews} avis)</span>
                       </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-blue-600">{coach.price}€/h</div>
+                  </div>                  <div className="text-right">
+                    <div className="text-3xl font-bold text-blue-600">{coach.hourlyRate} XRP/h</div>
+                    <div className="text-sm text-gray-500">({coach.price}€/h)</div>
                   </div>
                 </div>
 
@@ -231,6 +269,23 @@ export default function CoachDetailPage() {
                       <p className="text-gray-500 text-sm">Aucun créneau disponible pour cette date</p>
                     )}
                   </div>
+                )}                {/* Sélection de la durée */}
+                {selectedTime && (
+                  <div>
+                    <h4 className="font-medium mb-2">Durée de la session</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[30, 60, 90].map((duration) => (
+                        <Button
+                          key={duration}
+                          variant={sessionDuration === duration ? "default" : "outline"}
+                          onClick={() => setSessionDuration(duration)}
+                          className="text-sm"
+                        >
+                          {duration}min
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
                 {/* Sélection du terrain */}
@@ -253,10 +308,8 @@ export default function CoachDetailPage() {
                       ))}
                     </div>
                   </div>
-                )}
-
-                {/* Bouton de réservation */}
-                {selectedDate && selectedTime && selectedCourt && (
+                )}                {/* Bouton de réservation */}
+                {selectedDate && selectedTime && selectedCourt && !showPayment && (
                   <div className="border-t pt-4">
                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
                       <h5 className="font-medium mb-2">Récapitulatif</h5>
@@ -264,13 +317,64 @@ export default function CoachDetailPage() {
                         <div>Coach: {coach.name}</div>
                         <div>Date: {selectedDate.toLocaleDateString()}</div>
                         <div>Heure: {selectedTime}</div>
+                        <div>Durée: {sessionDuration}min</div>
                         <div>Terrain: {selectedCourt}</div>
-                        <div className="font-semibold">Total: {coach.price}€</div>
+                        <div className="font-semibold text-blue-600">Total: {calculateSessionAmount()} XRP</div>
                       </div>
                     </div>
-                    <Button onClick={handleBooking} className="w-full bg-blue-600 hover:bg-blue-700">
-                      Réserver avec Escrow XRP
-                    </Button>
+                    
+                    {/* Affichage conditionnel selon l'état de connexion Xaman */}
+                    {!isConnected ? (
+                      <div className="space-y-4">
+                        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                          <div className="flex items-center gap-2 text-yellow-800 mb-2">
+                            <Wallet className="w-5 h-5" />
+                            <span className="font-medium">Connexion Xaman requise</span>
+                          </div>
+                          <p className="text-yellow-700 text-sm">
+                            Connectez votre wallet Xaman pour procéder au paiement sécurisé sur XRPL.
+                          </p>
+                        </div>
+                        <XamanConnectButton 
+                          className="w-full"
+                          onConnect={(address) => {
+                            console.log('Xaman connecté:', address)
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                          <div className="flex items-center gap-2 text-green-800 mb-2">
+                            <Wallet className="w-5 h-5" />
+                            <span className="font-medium">Wallet connecté</span>
+                          </div>
+                          <p className="text-green-700 text-sm">
+                            Adresse: {address}
+                          </p>
+                        </div>
+                        <Button onClick={handleBooking} className="w-full bg-blue-600 hover:bg-blue-700">
+                          Procéder au paiement XRPL
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Composant de paiement */}
+                {showPayment && selectedDate && selectedTime && selectedCourt && (                  <div className="border-t pt-4">
+                    <PaymentComponent
+                      coach={{
+                        id: coach.id.toString(),
+                        name: coach.name,
+                        hourlyRate: coach.hourlyRate,
+                        walletAddress: coach.xrplAddress
+                      }}
+                      sessionDateTime={createSessionDateTime()}
+                      duration={sessionDuration}
+                      amount={parseFloat(calculateSessionAmount())}
+                      onPaymentComplete={handlePaymentSuccess}
+                    />
                   </div>
                 )}
               </div>

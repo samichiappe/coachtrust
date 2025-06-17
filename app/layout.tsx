@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
+import { XamanWalletProvider } from "@/contexts/XamanWalletProvider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -20,9 +21,11 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
+        <XamanWalletProvider>
+          <Navbar />
+          <main>{children}</main>
+          <Footer />
+        </XamanWalletProvider>
       </body>
     </html>
   )
