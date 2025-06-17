@@ -4,15 +4,21 @@ const config = {
   testEnvironment: 'jsdom', // Changed to jsdom for React testing
   testMatch: [
     '<rootDir>/__tests__/**/*.test.{ts,tsx}'
-  ],
-  transform: {
+  ],  transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: {
-        jsx: 'react-jsx'
+        jsx: 'react-jsx',
+        target: 'ES2017',
+        module: 'commonjs',
+        moduleResolution: 'node',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+        skipLibCheck: true
       }
-    }],
+    }]
   },
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],moduleNameMapper: {
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup.ts'],

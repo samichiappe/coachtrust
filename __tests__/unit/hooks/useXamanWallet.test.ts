@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useXamanWallet } from '@/lib/hooks/useXamanWallet';
 
 // Mock fetch for API calls
@@ -19,6 +19,12 @@ describe('useXamanWallet Hook', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks();
+    
+    // Mock window.open to prevent "Not implemented" errors in tests
+    Object.defineProperty(window, 'open', {
+      value: jest.fn(),
+      writable: true,
+    });
     
     // Mock localStorage
     const mockStorage = {
@@ -37,7 +43,6 @@ describe('useXamanWallet Hook', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
-
   describe('Initial State', () => {
     it('should return correct initial state when not connected', () => {
       const { result } = renderHook(() => useXamanWallet());
@@ -52,6 +57,9 @@ describe('useXamanWallet Hook', () => {
         disconnect: expect.any(Function),
         signTransaction: expect.any(Function),
         refreshStatus: expect.any(Function),
+        validateTransaction: expect.any(Function),
+        getLastError: expect.any(Function),
+        clearError: expect.any(Function),
       });
     });
 
@@ -72,25 +80,33 @@ describe('useXamanWallet Hook', () => {
     });
   });
 
-  describe('Connection Flow', () => {
-    it('should set loading state when connect is called', async () => {
+  describe('Connection Flow', () => {    it('should set loading state when connect is called', async () => {
       const { result } = renderHook(() => useXamanWallet());
 
-      // Mock successful API response
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          payload: {
-            uuid: 'test-uuid',
-            next: { always: 'https://xumm.app/sign/test' }
-          }
+      // Mock API response with a delay to simulate real network conditions
+      mockFetch.mockImplementationOnce(() =>
+        new Promise(resolve => {
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              json: () => Promise.resolve({
+                success: true,
+                payload: {
+                  uuid: 'test-uuid',
+                  next: { always: 'https://xumm.app/sign/test' }
+                }
+              })
+            } as Response);
+          }, 10); // Small delay to allow loading state to be checked
         })
-      } as Response);
+      );
 
       await act(async () => {
+        // Start the connect process
         result.current.connect();
       });
 
+      // After the act() call, the state update should be processed
       expect(result.current.isLoading).toBe(true);
       expect(result.current.error).toBeNull();
     });
