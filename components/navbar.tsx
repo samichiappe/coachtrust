@@ -5,28 +5,14 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Menu, X, Wallet, User, LogOut } from "lucide-react"
+import { Menu, X, Wallet, User, LogOut, Loader2 } from "lucide-react"
+import { useXamanWallet } from "@/lib/hooks/useXamanWallet"
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isWalletConnected, setIsWalletConnected] = useState(false)
-  const [walletAddress, setWalletAddress] = useState("")
-
-  const connectXamanWallet = async () => {
-    try {
-      // Simulation de connexion Xaman
-      // Dans un vrai projet, vous utiliseriez la SDK Xaman
-      setIsWalletConnected(true)
-      setWalletAddress("rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH")
-    } catch (error) {
-      console.error("Erreur de connexion wallet:", error)
-    }
-  }
-
-  const disconnectWallet = () => {
-    setIsWalletConnected(false)
-    setWalletAddress("")
-  }
+  
+  // Utilisation du vrai hook Xaman sécurisé
+  const { isConnected, address, isLoading, error, connect, disconnect } = useXamanWallet()
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -60,21 +46,27 @@ export function Navbar() {
             <Link href="/contact" className="text-gray-700 hover:text-blue-600 font-medium">
               Contact
             </Link>
-          </div>
-
-          {/* Wallet Connection */}
+          </div>          {/* Wallet Connection */}
           <div className="hidden md:flex items-center space-x-4">
-            {!isWalletConnected ? (
-              <Button onClick={connectXamanWallet} className="bg-blue-600 hover:bg-blue-700">
-                <Wallet className="w-4 h-4 mr-2" />
-                Connecter Xaman
+            {!isConnected ? (
+              <Button 
+                onClick={connect} 
+                disabled={isLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Wallet className="w-4 h-4 mr-2" />
+                )}
+                {isLoading ? 'Connexion...' : 'Connecter Xaman'}
               </Button>
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>{formatAddress(walletAddress)}</span>
+                    <span>{address ? formatAddress(address) : 'Connecté'}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -82,12 +74,17 @@ export function Navbar() {
                     <User className="w-4 h-4 mr-2" />
                     Mon profil
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={disconnectWallet}>
+                  <DropdownMenuItem onClick={disconnect}>
                     <LogOut className="w-4 h-4 mr-2" />
                     Déconnecter
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            )}
+            {error && (
+              <div className="text-red-500 text-sm max-w-xs truncate">
+                {error}
+              </div>
             )}
           </div>
 
@@ -130,21 +127,33 @@ export function Navbar() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Contact
-              </Link>
-              <div className="px-3 py-2">
-                {!isWalletConnected ? (
-                  <Button onClick={connectXamanWallet} className="w-full bg-blue-600 hover:bg-blue-700">
-                    <Wallet className="w-4 h-4 mr-2" />
-                    Connecter Xaman
+              </Link>              <div className="px-3 py-2">
+                {!isConnected ? (
+                  <Button 
+                    onClick={connect} 
+                    disabled={isLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Wallet className="w-4 h-4 mr-2" />
+                    )}
+                    {isLoading ? 'Connexion...' : 'Connecter Xaman'}
                   </Button>
                 ) : (
                   <div className="space-y-2">
                     <Badge variant="outline" className="w-full justify-center">
-                      {formatAddress(walletAddress)}
+                      {address ? formatAddress(address) : 'Connecté'}
                     </Badge>
-                    <Button onClick={disconnectWallet} variant="outline" className="w-full">
+                    <Button onClick={disconnect} variant="outline" className="w-full">
                       Déconnecter
                     </Button>
+                  </div>
+                )}
+                {error && (
+                  <div className="text-red-500 text-sm mt-2 text-center">
+                    {error}
                   </div>
                 )}
               </div>

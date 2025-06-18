@@ -148,7 +148,7 @@ export default function AboutPage() {
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="text-center">
               <CardContent className="pt-6">
-                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                <img className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 object-cover" src="../alex_founder.jpg"></img>
                 <h3 className="text-xl font-semibold mb-2">Alex Founder</h3>
                 <p className="text-gray-600 mb-2">CEO & Co-fondateur</p>
                 <p className="text-sm text-gray-500">Expert en blockchain et ancien coach sportif</p>
@@ -157,7 +157,7 @@ export default function AboutPage() {
 
             <Card className="text-center">
               <CardContent className="pt-6">
-                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                <img className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 object-cover" src="../marie_tech.jpg"></img>
                 <h3 className="text-xl font-semibold mb-2">Marie Tech</h3>
                 <p className="text-gray-600 mb-2">CTO & Co-fondatrice</p>
                 <p className="text-sm text-gray-500">Développeuse blockchain spécialisée XRP Ledger</p>
@@ -166,7 +166,7 @@ export default function AboutPage() {
 
             <Card className="text-center">
               <CardContent className="pt-6">
-                <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                <img className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 object-cover" src="../tom_sport.jpg"></img>
                 <h3 className="text-xl font-semibold mb-2">Tom Sport</h3>
                 <p className="text-gray-600 mb-2">Head of Sports</p>
                 <p className="text-sm text-gray-500">Ex-athlète professionnel et expert en coaching</p>
