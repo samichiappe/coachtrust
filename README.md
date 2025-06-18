@@ -7,11 +7,6 @@
 
 **CoachTrust** est une marketplace décentralisée qui connecte les coaches sportifs certifiés et les clients via la blockchain XRP Ledger. Rapide, sécurisée et accessible partout, la plateforme permet de réserver un coach en quelques clics pour des sports comme le tennis, le padel ou le squash, avec des paiements transparents et garantis par escrow.
 
-## 🚀 Démo en ligne
-
-- **Application** : [https://xrpl-coach-booking.vercel.app](https://xrpl-coach-booking.vercel.app)
-- **Page Coach** : [https://xrpl-coach-booking.vercel.app/coach/1](https://xrpl-coach-booking.vercel.app/coach/1)
-- **Test XRPL** : [https://xrpl-coach-booking.vercel.app/xrpl-test](https://xrpl-coach-booking.vercel.app/xrpl-test)
 
 ## ✨ Fonctionnalités
 
