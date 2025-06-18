@@ -300,36 +300,6 @@ export function EscrowTestComponent() {
           )}
         </CardContent>
       </Card>
-
-      {/* Technical Details */}
-      <Card className="w-full max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle className="text-lg">Phase 3.2 - Détails d'Implémentation</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div>
-            <strong>✅ Crypto-Conditions:</strong> Génération sécurisée avec five-bells-condition
-          </div>
-          <div>
-            <strong>✅ EscrowCreate:</strong> Transaction XRPL conforme aux patterns xrpl-playground
-          </div>
-          <div>
-            <strong>✅ Xaman Integration:</strong> Signature sécurisée via backend API
-          </div>
-          <div>
-            <strong>✅ Validation:</strong> Validation complète des adresses et montants
-          </div>
-          <div>
-            <strong>✅ Workflow:</strong> Création → Condition → Signature → Finalisation
-          </div>
-          <div>
-            <strong>✅ Error Handling:</strong> Gestion robuste des erreurs et annulations
-          </div>
-          <div className="pt-2 border-t">
-            <strong>Next:</strong> Phase 3.3 - Intégration complète avec système de réservation
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button"
 import { MapPin, Star, Clock, Users } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { XamanDebugStatus } from "@/components/XamanDebugStatus"
 import { PaymentTestSimple } from "@/components/PaymentTestSimple"
-import { EscrowTestComponent } from "@/components/EscrowTestComponent"
 
 const coaches = [
 	{
@@ -207,29 +205,6 @@ export default function HomePage() {
 							</p>
 						</div>
 					</div>
-				</div>
-			</section>			{/* Payment Test Section - Phase 3.1 */}
-			<section className="py-16 px-4 bg-gray-50">
-				<div className="max-w-6xl mx-auto">
-					<h2 className="text-3xl font-bold text-center mb-12">
-						🚀 Phase 3.1 - XRPL Payment System Test
-					</h2>
-					<PaymentTestSimple />
-				</div>
-			</section>
-
-			{/* Escrow Test Section - Phase 3.2 */}
-			<section className="py-16 px-4 bg-blue-50">
-				<div className="max-w-6xl mx-auto">
-					<h2 className="text-3xl font-bold text-center mb-12">
-						🔒 Phase 3.2 - XRPL Escrow System Test
-					</h2>
-					<EscrowTestComponent />
-				</div>
-			</section>{/* Debug Section */}
-			<section className="py-8 px-4 bg-gray-100">
-				<div className="max-w-6xl mx-auto">
-					<XamanDebugStatus />
 				</div>
 			</section>
 		</div>

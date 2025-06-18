@@ -228,3 +228,19 @@ export async function createPaymentRequest(payload: SignRequestPayload): Promise
     throw new Error(`Failed to create payment request: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
+
+// Cancel a payload by UUID (see https://docs.xaman.dev/js-ts-sdk/sdk-syntax/xumm.payload/cancel)
+export async function cancelPayload(payloadId: string): Promise<any> {
+  const xumm = getXummClient();
+  try {
+    if (!xumm.payload) {
+      throw new Error('Payload service not available');
+    }
+    const result = await xumm.payload.cancel(payloadId);
+    console.log('Cancel payload result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error cancelling payload:', error);
+    throw new Error('Failed to cancel payload');
+  }
+}
